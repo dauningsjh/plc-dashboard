@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>제품 PLC 대시보드 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #F5F4F0;
+  --surface: #FFFFFF;
+  --surface2: #FAFAF8;
+  --border: #E5E3DC;
+  --border2: #D8D5CC;
+  --text1: #1A1917;
+  --text2: #5C5A55;
+  --text3: #999690;
+  --blue: #2563EB;
+  --blue-light: #EFF4FF;
+  --teal: #0D9488;
+  --teal-light: #F0FDFA;
+  --amber: #D97706;
+  --amber-light: #FFFBEB;
+  --red: #DC2626;
+  --red-light: #FEF2F2;
+  --core: #DC2626;
+  --main: #2563EB;
+  --gen: #6B7280;
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text1); font-size: 14px; line-height: 1.6; }
+
+/* NAV */
+.nav { background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+.nav-inner { max-width: 1280px; margin: 0 auto; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; height: 56px; }
+.nav-title { font-size: 15px; font-weight: 700; letter-spacing: -0.3px; }
+.nav-sub { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; }
+.month-tabs { display: flex; gap: 4px; }
+.month-tab { padding: 5px 12px; border: 1px solid var(--border); border-radius: 20px; background: transparent; cursor: pointer; font-size: 12px; font-family: 'Noto Sans KR', sans-serif; color: var(--text2); transition: all 0.15s; }
+.month-tab.active { background: var(--text1); color: #fff; border-color: var(--text1); }
+
+/* LAYOUT */
+.container { max-width: 1280px; margin: 0 auto; padding: 24px 20px; }
+.section { margin-bottom: 40px; }
+.section-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.section-title { font-size: 17px; font-weight: 700; }
+.section-badge { font-size: 10px; font-family: 'DM Mono', monospace; background: var(--text1); color: #fff; padding: 2px 8px; border-radius: 4px; letter-spacing: 0.5px; }
+.section-sub { font-size: 12px; color: var(--text3); }
+
+/* CARDS */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+.card-title { font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 12px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+
+/* KPI */
+.kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 16px 18px; }
+.kpi-label { font-size: 11px; color: var(--text3); margin-bottom: 4px; }
+.kpi-val { font-size: 26px; font-weight: 700; letter-spacing: -1px; line-height: 1; }
+.kpi-unit { font-size: 13px; font-weight: 400; color: var(--text2); }
+.kpi-note { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+/* BADGES */
+.badge { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 500; }
+.badge-core { background: #FEE2E2; color: #991B1B; }
+.badge-main { background: #DBEAFE; color: #1D4ED8; }
+.badge-gen { background: #F3F4F6; color: #374151; }
+
+/* CHART */
+.chart-wrap { position: relative; }
+
+/* CHANNEL TABS */
+.ch-tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+.ch-tab { padding: 6px 16px; border: 1px solid var(--border); border-radius: 20px; background: transparent; cursor: pointer; font-size: 12px; font-family: 'Noto Sans KR', sans-serif; color: var(--text2); transition: all 0.15s; }
+.ch-tab.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+.ch-pane { display: none; }
+.ch-pane.active { display: block; }
+
+/* CAT TABS */
+.cat-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+.cat-tab { padding: 5px 14px; border: 1px solid var(--border); border-radius: 20px; background: transparent; cursor: pointer; font-size: 12px; font-family: 'Noto Sans KR', sans-serif; color: var(--text2); }
+.cat-tab.active { background: var(--text1); color: #fff; border-color: var(--text1); }
+
+/* PLC TABLE */
+.plc-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.plc-table th { padding: 8px 10px; text-align: left; font-weight: 500; color: var(--text3); background: var(--surface2); border-bottom: 1px solid var(--border); font-size: 11px; position: sticky; top: 0; }
+.plc-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.plc-table tr:last-child td { border-bottom: none; }
+.plc-table tr:hover td { background: var(--surface2); }
+.prod-img { width: 48px; height: 36px; object-fit: cover; border-radius: 4px; background: #f0f0f0; }
+.prod-img-placeholder { width: 48px; height: 36px; border-radius: 4px; background: var(--surface2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 8px; color: var(--text3); }
+.rank-num { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text3); }
+.plc-bar-wrap { display: flex; align-items: center; gap: 6px; }
+.plc-bar { height: 6px; border-radius: 3px; background: var(--blue); min-width: 2px; }
+.plc-bar-val { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text2); white-space: nowrap; }
+
+/* TABLE SCROLL CONTAINER */
+.table-scroll { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); }
+
+/* LEGEND */
+.legend { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 10px; }
+.leg-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text2); }
+.leg-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+/* PRODUCT CARDS GRID */
+.prod-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+.prod-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.prod-card-img { width: 100%; aspect-ratio: 4/3; object-fit: cover; background: var(--surface2); display: block; }
+.prod-card-img-ph { width: 100%; aspect-ratio: 4/3; background: var(--surface2); display: flex; align-items: center; justify-content: center; color: var(--text3); font-size: 11px; }
+.prod-card-body { padding: 10px 12px; }
+.prod-card-name { font-size: 12px; font-weight: 500; margin-bottom: 4px; }
+.prod-card-meta { display: flex; align-items: center; justify-content: space-between; }
+.prod-card-val { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text2); }
+
+/* SPARKLINE */
+.spark-wrap { display: flex; gap: 2px; align-items: flex-end; height: 28px; }
+.spark-bar { background: #BFDBFE; border-radius: 1px; min-width: 4px; flex: 1; transition: background 0.15s; }
+.spark-bar.highlight { background: var(--blue); }
+
+/* SUMMARY ROW */
+.sum-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 14px; }
+
+/* CHANNEL SUMMARY CARD */
+.ch-sum-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+.ch-name { font-size: 13px; font-weight: 700; margin-bottom: 12px; }
+.ch-sku-row { display: flex; gap: 8px; }
+.ch-sku-item { flex: 1; text-align: center; padding: 10px 4px; border-radius: var(--radius-sm); }
+.ch-sku-core { background: var(--red-light); }
+.ch-sku-main { background: var(--blue-light); }
+.ch-sku-gen { background: #F9FAFB; border: 1px solid var(--border); }
+.ch-sku-num { font-size: 20px; font-weight: 700; line-height: 1; }
+.ch-sku-label { font-size: 10px; margin-top: 2px; }
+
+/* TREND TABLE (신제품) */
+.trend-section { margin-bottom: 20px; }
+.trend-label { font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 8px; padding-left: 4px; }
+
+/* MOBILE */
+@media (max-width: 768px) {
+  .nav-inner { padding: 0 14px; }
+  .nav-title { font-size: 13px; }
+  .month-tab { padding: 4px 9px; font-size: 11px; }
+  .container { padding: 16px 14px; }
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+  .sum-grid { grid-template-columns: 1fr; }
+  .kpi-val { font-size: 22px; }
+  .prod-grid { grid-template-columns: repeat(2, 1fr); }
+  .section-title { font-size: 15px; }
+  .ch-pane { overflow-x: hidden; }
+}
+@media (max-width: 480px) {
+  .month-tabs { gap: 3px; }
+  .month-tab { padding: 4px 8px; font-size: 10px; }
+  .prod-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+}
+
+/* DIVIDERS */
+.plc-group-header { background: var(--surface2); }
+.plc-group-header td { padding: 6px 10px; font-size: 11px; font-weight: 700; color: var(--text2); border-bottom: 1px solid var(--border2); letter-spacing: 0.3px; }
+
+.top3-badge { font-family: 'DM Mono', monospace; font-size: 11px; background: #FEF9C3; color: #92400E; padding: 1px 5px; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <div>
+      <div class="nav-title">제품 PLC 대시보드</div>
+      <div class="nav-sub">2026 · 상품기획팀</div>
+    </div>
+    <div class="month-tabs">
+      <button class="month-tab active" data-month="q1" onclick="setMonth('q1',this)">1분기</button>
+      <button class="month-tab" data-month="jan" onclick="setMonth('jan',this)">1월</button>
+      <button class="month-tab" data-month="feb" onclick="setMonth('feb',this)">2월</button>
+      <button class="month-tab" data-month="mar" onclick="setMonth('mar',this)">3월</button>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+
+<!-- ===========================
+     SECTION 1: 전체 개요
+=========================== -->
+<section class="section">
+  <div class="section-header">
+    <span class="section-badge">01</span>
+    <span class="section-title">전체 개요</span>
+    <span class="section-sub">매출현황 · 채널별 제품 SKU 현황</span>
+  </div>
+
+  <!-- KPI 4개 -->
+  <div class="grid-4" style="margin-bottom:16px">
+    <div class="kpi-card">
+      <div class="kpi-label">신제품 누적매출</div>
+      <div class="kpi-val"><span id="kpi-total">26.5</span><span class="kpi-unit">억</span></div>
+      <div class="kpi-note">2026.01~03 · 3채널 합산</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">소파 신제품</div>
+      <div class="kpi-val"><span id="kpi-sofa">25.6</span><span class="kpi-unit">억</span></div>
+      <div class="kpi-note">백화점+라운지+온라인</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">가구(식탁/체어)</div>
+      <div class="kpi-val"><span id="kpi-furn">1.54</span><span class="kpi-unit">억</span></div>
+      <div class="kpi-note">라운지+온라인</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">1인 리클라이너</div>
+      <div class="kpi-val"><span id="kpi-recl">2.97</span><span class="kpi-unit">억</span></div>
+      <div class="kpi-note">3채널 합산</div>
+    </div>
+  </div>
+
+  <!-- 월별 채널 매출 차트 + SKU -->
+  <div class="grid-2" style="margin-bottom:16px">
+    <div class="card">
+      <div class="card-title">채널별 월별 신제품 매출 추이 (억원)</div>
+      <div class="legend">
+        <span class="leg-item"><span class="leg-dot" style="background:#2563EB"></span>백화점</span>
+        <span class="leg-item"><span class="leg-dot" style="background:#0D9488"></span>라운지</span>
+        <span class="leg-item"><span class="leg-dot" style="background:#D97706"></span>온라인</span>
+      </div>
+      <div class="chart-wrap" style="height:200px"><canvas id="chartMonthly"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">채널별 신제품 카테고리 매출 (1분기 합산, 억원)</div>
+      <div class="legend">
+        <span class="leg-item"><span class="leg-dot" style="background:#2563EB"></span>소파</span>
+        <span class="leg-item"><span class="leg-dot" style="background:#0D9488"></span>식탁/체어</span>
+        <span class="leg-item"><span class="leg-dot" style="background:#D97706"></span>1인 리클</span>
+      </div>
+      <div class="chart-wrap" style="height:200px"><canvas id="chartCategory"></canvas></div>
+    </div>
+  </div>
+
+  <!-- 채널별 SKU 현황 -->
+  <div class="sum-grid">
+    <div class="ch-sum-card">
+      <div class="ch-name">🏬 백화점</div>
+      <div class="ch-sku-row">
+        <div class="ch-sku-item ch-sku-core"><div class="ch-sku-num" style="color:var(--red)">2</div><div class="ch-sku-label" style="color:#991B1B">핵심</div><div style="font-size:9px;color:var(--text3)">80조↑</div></div>
+        <div class="ch-sku-item ch-sku-main"><div class="ch-sku-num" style="color:var(--blue)">6</div><div class="ch-sku-label" style="color:#1D4ED8">주력</div><div style="font-size:9px;color:var(--text3)">30조↑</div></div>
+        <div class="ch-sku-item ch-sku-gen"><div class="ch-sku-num" style="color:var(--gen)">22</div><div class="ch-sku-label" style="color:var(--text2)">일반</div><div style="font-size:9px;color:var(--text3)">30조↓</div></div>
+      </div>
+      <div style="margin-top:10px;display:flex;justify-content:space-between;font-size:11px;color:var(--text3)"><span>총 운영</span><span style="font-weight:700;color:var(--text1)">30개</span></div>
+    </div>
+    <div class="ch-sum-card">
+      <div class="ch-name">🛋️ 라운지</div>
+      <div class="ch-sku-row">
+        <div class="ch-sku-item ch-sku-core"><div class="ch-sku-num" style="color:var(--red)">4</div><div class="ch-sku-label" style="color:#991B1B">핵심</div><div style="font-size:9px;color:var(--text3)">50조↑</div></div>
+        <div class="ch-sku-item ch-sku-main"><div class="ch-sku-num" style="color:var(--blue)">12</div><div class="ch-sku-label" style="color:#1D4ED8">주력</div><div style="font-size:9px;color:var(--text3)">10조↑</div></div>
+        <div class="ch-sku-item ch-sku-gen"><div class="ch-sku-num" style="color:var(--gen)">23</div><div class="ch-sku-label" style="color:var(--text2)">일반</div><div style="font-size:9px;color:var(--text3)">10조↓</div></div>
+      </div>
+      <div style="margin-top:10px;display:flex;justify-content:space-between;font-size:11px;color:var(--text3)"><span>총 운영</span><span style="font-weight:700;color:var(--text1)">39개</span></div>
+    </div>
+    <div class="ch-sum-card">
+      <div class="ch-name">💻 온라인</div>
+      <div class="ch-sku-row">
+        <div class="ch-sku-item ch-sku-core"><div class="ch-sku-num" style="color:var(--red)">3</div><div class="ch-sku-label" style="color:#991B1B">핵심</div><div style="font-size:9px;color:var(--text3)">50조↑</div></div>
+        <div class="ch-sku-item ch-sku-main"><div class="ch-sku-num" style="color:var(--blue)">11</div><div class="ch-sku-label" style="color:#1D4ED8">주력</div><div style="font-size:9px;color:var(--text3)">10조↑</div></div>
+        <div class="ch-sku-item ch-sku-gen"><div class="ch-sku-num" style="color:var(--gen)">44</div><div class="ch-sku-label" style="color:var(--text2)">일반</div><div style="font-size:9px;color:var(--text3)">10조↓</div></div>
+      </div>
+      <div style="margin-top:10px;display:flex;justify-content:space-between;font-size:11px;color:var(--text3)"><span>총 운영</span><span style="font-weight:700;color:var(--text1)">58개</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===========================
+     SECTION 2: 채널별 운영제품 PLC
+=========================== -->
+<section class="section">
+  <div class="section-header">
+    <span class="section-badge">02</span>
+    <span class="section-title">채널별 운영제품 PLC 현황</span>
+    <span class="section-sub">최근 6개월 월평균 판매량 기준</span>
+  </div>
+
+  <div class="ch-tabs">
+    <button class="ch-tab active" onclick="switchCh('plc','dept',this)">백화점</button>
+    <button class="ch-tab" onclick="switchCh('plc','lounge',this)">라운지</button>
+    <button class="ch-tab" onclick="switchCh('plc','online',this)">온라인</button>
+  </div>
+
+  <!-- 백화점 PLC -->
+  <div id="plc-dept" class="ch-pane active">
+    <div class="grid-2" style="margin-bottom:16px">
+      <div class="card">
+        <div class="card-title">상위 10개 제품 월평균 판매량 (조)</div>
+        <div class="chart-wrap" style="height:260px"><canvas id="chartDeptBar"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">핵심·주력 판매 추이 (25.01~26.03)</div>
+        <div class="legend" style="margin-bottom:8px">
+          <span class="leg-item"><span class="leg-dot" style="background:#DC2626"></span>브리오스</span>
+          <span class="leg-item"><span class="leg-dot" style="background:#D97706"></span>빈체로</span>
+          <span class="leg-item"><span class="leg-dot" style="background:#2563EB"></span>젤코바</span>
+          <span class="leg-item"><span class="leg-dot" style="background:#0D9488"></span>헤네스</span>
+        </div>
+        <div class="chart-wrap" style="height:210px"><canvas id="chartDeptTrend"></canvas></div>
+      </div>
+    </div>
+    <div class="table-scroll">
+      <table class="plc-table">
+        <thead><tr><th>#</th><th>이미지</th><th>제품명</th><th>분류</th><th>월평균 판매</th><th>월평균 매출</th><th>총 판매량</th><th>진열수</th></tr></thead>
+        <tbody id="plc-dept-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 라운지 PLC -->
+  <div id="plc-lounge" class="ch-pane">
+    <div class="grid-2" style="margin-bottom:16px">
+      <div class="card">
+        <div class="card-title">상위 10개 제품 월평균 판매량 (조)</div>
+        <div class="chart-wrap" style="height:260px"><canvas id="chartLoungeBar"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">핵심 제품 판매 추이 (25.01~26.03)</div>
+        <div class="legend" style="margin-bottom:8px">
+          <span class="leg-item"><span class="leg-dot" style="background:#DC2626"></span>일루전</span>
+          <span class="leg-item"><span class="leg-dot" style="background:#D97706"></span>로시오럭스</span>
+          <span class="leg-item"><span class="leg-dot" style="background:#2563EB"></span>엘레아</span>
+          <span class="leg-item"><span class="leg-dot" style="background:#0D9488"></span>카벨로</span>
+        </div>
+        <div class="chart-wrap" style="height:210px"><canvas id="chartLoungeTrend"></canvas></div>
+      </div>
+    </div>
+    <div class="table-scroll">
+      <table class="plc-table">
+        <thead><tr><th>#</th><th>이미지</th><th>제품명</th><th>분류</th><th>월평균 판매</th><th>월평균 매출</th><th>총 판매량</th><th>진열수</th></tr></thead>
+        <tbody id="plc-lounge-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 온라인 PLC -->
+  <div id="plc-online" class="ch-pane">
+    <div class="grid-2" style="margin-bottom:16px">
+      <div class="card">
+        <div class="card-title">상위 10개 제품 월평균 판매량 (조)</div>
+        <div class="chart-wrap" style="height:260px"><canvas id="chartOnlineBar"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">핵심 제품 판매 추이 (25.01~26.03)</div>
+        <div class="legend" style="margin-bottom:8px">
+          <span class="leg-item"><span class="leg-dot" style="background:#DC2626"></span>플랫</span>
+          <span class="leg-item"><span class="leg-dot" style="background:#D97706"></span>시엘</span>
+          <span class="leg-item"><span class="leg-dot" style="background:#2563EB"></span>클로</span>
+        </div>
+        <div class="chart-wrap" style="height:210px"><canvas id="chartOnlineTrend"></canvas></div>
+      </div>
+    </div>
+    <div class="table-scroll">
+      <table class="plc-table">
+        <thead><tr><th>#</th><th>이미지</th><th>제품명</th><th>분류</th><th>월평균 판매</th><th>월평균 매출</th><th>총 판매량</th></tr></thead>
+        <tbody id="plc-online-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ===========================
+     SECTION 3: 신제품 판매 추이
+=========================== -->
+<section class="section">
+  <div class="section-header">
+    <span class="section-badge">03</span>
+    <span class="section-title">신제품 판매 추이</span>
+    <span class="section-sub">출시 6개월 이내 기준 · 수량(조) / 매출(억원)</span>
+  </div>
+
+  <div class="cat-tabs">
+    <button class="cat-tab active" onclick="switchCat('sofa',this)">소파</button>
+    <button class="cat-tab" onclick="switchCat('furn',this)">가구 (식탁/체어)</button>
+    <button class="cat-tab" onclick="switchCat('recl',this)">1인 리클라이너</button>
+  </div>
+
+  <!-- 소파 -->
+  <div id="cat-sofa" class="ch-pane active">
+    <div class="ch-tabs">
+      <button class="ch-tab active" onclick="switchCh('sofa','dept',this)">백화점</button>
+      <button class="ch-tab" onclick="switchCh('sofa','lounge',this)">라운지</button>
+      <button class="ch-tab" onclick="switchCh('sofa','online',this)">온라인</button>
+    </div>
+
+    <div id="sofa-dept" class="ch-pane active">
+      <div class="grid-2" style="margin-bottom:14px">
+        <div class="card">
+          <div class="card-title">판매량 추이 (조)</div>
+          <div class="legend">
+            <span class="leg-item"><span class="leg-dot" style="background:#2563EB"></span>마렌</span>
+            <span class="leg-item"><span class="leg-dot" style="background:#0D9488"></span>벨리체</span>
+            <span class="leg-item"><span class="leg-dot" style="background:#D97706"></span>트루엘</span>
+            <span class="leg-item"><span class="leg-dot" style="background:#DC2626"></span>그렘보</span>
+            <span class="leg-item"><span class="leg-dot" style="background:#7C3AED"></span>아크</span>
+          </div>
+          <div class="chart-wrap" style="height:220px"><canvas id="chartDeptSofaQty"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">매출액 추이 (억원)</div>
+          <div class="legend">
+            <span class="leg-item"><span class="leg-dot" style="background:#2563EB"></span>마렌</span>
+            <span class="leg-item"><span class="leg-dot" style="background:#0D9488"></span>벨리체</span>
+            <span class="leg-item"><span class="leg-dot" style="background:#D97706"></span>트루엘</span>
+          </div>
+          <div class="chart-wrap" style="height:220px"><canvas id="chartDeptSofaRev"></canvas></div>
+        </div>
+      </div>
+      <div id="sofa-dept-cards" class="prod-grid"></div>
+    </div>
+
+    <div id="sofa-lounge" class="ch-pane">
+      <div class="grid-2" style="margin-bottom:14px">
+        <div class="card">
+          <div class="card-title">판매량 추이 (조)</div>
+          <div class="legend">
+            <span class="leg-item"><span class="leg-dot" style="background:#2563EB"></span>아테나</span>
+            <span class="leg-item"><span class="leg-dot" style="background:#0D9488"></span>메리온하이</span>
+            <span class="leg-item"><span class="leg-dot" style="background:#D97706"></span>미노르</span>
+            <span class="leg-item"><span class="leg-dot" style="background:#DC2626"></span>뉴알도</span>
+          </div>
+          <div class="chart-wrap" style="height:220px"><canvas id="chartLoungeSofaQty"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">매출액 추이 (억원)</div>
+          <div class="legend">
+            <span class="leg-item"><span class="leg-dot" style="background:#2563EB"></span>아테나</span>
+            <span class="leg-item"><span class="leg-dot" style="background:#0D9488"></span>메리온하이</span>
+            <span class="leg-item"><span class="leg-dot" style="background:#D97706"></span>미노르</span>
+          </div>
+          <div class="chart-wrap" style="height:220px"><canvas id="chartLoungeSofaRev"></canvas></div>
+        </div>
+      </div>
+      <div id="sofa-lounge-cards" class="prod-grid"></div>
+    </div>
+
+    <div id="sofa-online" class="ch-pane">
+      <div class="grid-2" style="margin-bottom:14px">
+        <div class="card">
+          <div class="card-title">판매량 추이 (조)</div>
+          <div class="legend">
+            <span class="leg-item"><span class="leg-dot" style="background:#2563EB"></span>클로</span>
+            <span class="leg-item"><span class="leg-dot" style="background:#0D9488"></span>센느</span>
+            <span class="leg-item"><span class="leg-dot" style="background:#D97706"></span>플라나베이직</span>
+            <span class="leg-item"><span class="leg-dot" style="background:#DC2626"></span>모션</span>
+          </div>
+          <div class="chart-wrap" style="height:220px"><canvas id="chartOnlineSofaQty"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">매출액 추이 (억원)</div>
+          <div class="legend">
+            <span class="leg-item"><span class="leg-dot" style="background:#2563EB"></span>클로</span>
+            <span class="leg-item"><span class="leg-dot" style="background:#0D9488"></span>센느</span>
+            <span class="leg-item"><span class="leg-dot" style="background:#D97706"></span>플라나베이직</span>
+          </div>
+          <div class="chart-wrap" style="height:220px"><canvas id="chartOnlineSofaRev"></canvas></div>
+        </div>
+      </div>
+      <div id="sofa-online-cards" class="prod-grid"></div>
+    </div>
+  </div>
+
+  <!-- 가구 -->
+  <div id="cat-furn" class="ch-pane">
+    <div class="ch-tabs">
+      <button class="ch-tab active" onclick="switchCh('furn','lounge',this)">라운지</button>
+      <button class="ch-tab" onclick="switchCh('furn','online',this)">온라인</button>
+    </div>
+    <div id="furn-lounge" class="ch-pane active">
+      <div class="grid-2" style="margin-bottom:14px">
+        <div class="card">
+          <div class="card-title">판매량 추이 (개)</div>
+          <div class="legend">
+            <span class="leg-item"><span class="leg-dot" style="background:#2563EB"></span>루나 식탁</span>
+            <span class="leg-item"><span class="leg-dot" style="background:#0D9488"></span>루나 체어</span>
+            <span class="leg-item"><span class="leg-dot" style="background:#D97706"></span>노크 식탁</span>
+            <span class="leg-item"><span class="leg-dot" style="background:#DC2626"></span>노크 체어</span>
+          </div>
+          <div class="chart-wrap" style="height:220px"><canvas id="chartLoungeFurnQty"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">매출액 추이 (억원)</div>
+          <div class="legend">
+            <span class="leg-item"><span class="leg-dot" style="background:#2563EB"></span>루나</span>
+            <span class="leg-item"><span class="leg-dot" style="background:#0D9488"></span>노크</span>
+          </div>
+          <div class="chart-wrap" style="height:220px"><canvas id="chartLoungeFurnRev"></canvas></div>
+        </div>
+      </div>
+      <div class="prod-grid">
+        <div class="prod-card"><img src="images/루나.jpg" class="prod-card-img" alt="루나" onerror="this.style.display='none'"><div class="prod-card-body"><div class="prod-card-name">루나</div><div class="prod-card-meta"><span class="badge badge-main">주력</span><span class="prod-card-val">식탁 33.5/월</span></div></div></div>
+        <div class="prod-card"><img src="images/노크.jpg" class="prod-card-img" alt="노크" onerror="this.style.display='none'"><div class="prod-card-body"><div class="prod-card-name">노크</div><div class="prod-card-meta"><span class="badge badge-gen">일반</span><span class="prod-card-val">식탁 10.5/월</span></div></div></div>
+      </div>
+    </div>
+    <div id="furn-online" class="ch-pane">
+      <div class="grid-2" style="margin-bottom:14px">
+        <div class="card">
+          <div class="card-title">판매량 추이 (개)</div>
+          <div class="legend">
+            <span class="leg-item"><span class="leg-dot" style="background:#2563EB"></span>노에뜨스퀘어 식탁</span>
+            <span class="leg-item"><span class="leg-dot" style="background:#0D9488"></span>노에뜨스퀘어 체어</span>
+            <span class="leg-item"><span class="leg-dot" style="background:#D97706"></span>노에뜨오벌</span>
+          </div>
+          <div class="chart-wrap" style="height:220px"><canvas id="chartOnlineFurnQty"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">매출액 추이 (억원)</div>
+          <div class="legend">
+            <span class="leg-item"><span class="leg-dot" style="background:#2563EB"></span>노에뜨스퀘어</span>
+            <span class="leg-item"><span class="leg-dot" style="background:#0D9488"></span>노에뜨오벌</span>
+          </div>
+          <div class="chart-wrap" style="height:220px"><canvas id="chartOnlineFurnRev"></canvas></div>
+        </div>
+      </div>
+      <div class="prod-grid">
+        <div class="prod-card"><img src="images/노에뜨스퀘어.jpg" class="prod-card-img" alt="노에뜨스퀘어" onerror="this.style.display='none'"><div class="prod-card-body"><div class="prod-card-name">노에뜨 스퀘어</div><div class="prod-card-meta"><span class="badge badge-main">주력</span><span class="prod-card-val">11조/월</span></div></div></div>
+        <div class="prod-card"><img src="images/노에뜨오벌.jpg" class="prod-card-img" alt="노에뜨오벌" onerror="this.style.display='none'"><div class="prod-card-body"><div class="prod-card-name">노에뜨 오벌</div><div class="prod-card-meta"><span class="badge badge-main">주력</span><span class="prod-card-val">2조/월</span></div></div></div>
+        <div class="prod-card"><img src="images/마롱.jpg" class="prod-card-img" alt="마롱" onerror="this.style.display='none'"><div class="prod-card-body"><div class="prod-card-name">마롱</div><div class="prod-card-meta"><span class="badge badge-gen">일반</span><span class="prod-card-val">1조/월</span></div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 1인 리클라이너 -->
+  <div id="cat-recl" class="ch-pane">
+    <div class="ch-tabs">
+      <button class="ch-tab active" onclick="switchCh('recl','dept',this)">백화점</button>
+      <button class="ch-tab" onclick="switchCh('recl','lounge',this)">라운지</button>
+      <button class="ch-tab" onclick="switchCh('recl','online',this)">온라인</button>
+    </div>
+
+    <div id="recl-dept" class="ch-pane active">
+      <div class="grid-4" style="margin-bottom:14px">
+        <div class="kpi-card"><div class="kpi-label">1분기 누적매출</div><div class="kpi-val">1.28<span class="kpi-unit">억</span></div></div>
+        <div class="kpi-card"><div class="kpi-label">1월</div><div class="kpi-val">0<span class="kpi-unit">조</span></div></div>
+        <div class="kpi-card"><div class="kpi-label">2월</div><div class="kpi-val">5<span class="kpi-unit">조</span></div></div>
+        <div class="kpi-card"><div class="kpi-label">3월</div><div class="kpi-val">24<span class="kpi-unit">조</span></div></div>
+      </div>
+      <div class="grid-2" style="margin-bottom:14px">
+        <div class="card">
+          <div class="card-title">월별 판매량 (조)</div>
+          <div class="chart-wrap" style="height:200px"><canvas id="chartReclDeptQty"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">월별 매출 (억원)</div>
+          <div class="chart-wrap" style="height:200px"><canvas id="chartReclDeptRev"></canvas></div>
+        </div>
+      </div>
+      <div class="prod-grid">
+        <div class="prod-card"><img src="images/Lillo_ED502.jpg" class="prod-card-img" alt="Lillo ED502" onerror="this.style.display='none'"><div class="prod-card-body"><div class="prod-card-name">Lillo ED502 (전동)</div><div class="prod-card-meta"><span class="badge badge-main">주력</span><span class="prod-card-val">9.7조/월</span></div></div></div>
+      </div>
+    </div>
+
+    <div id="recl-lounge" class="ch-pane">
+      <div class="grid-4" style="margin-bottom:14px">
+        <div class="kpi-card"><div class="kpi-label">1분기 누적매출</div><div class="kpi-val">1.25<span class="kpi-unit">억</span></div></div>
+        <div class="kpi-card"><div class="kpi-label">1월</div><div class="kpi-val">35<span class="kpi-unit">조</span></div></div>
+        <div class="kpi-card"><div class="kpi-label">2월</div><div class="kpi-val">27<span class="kpi-unit">조</span></div></div>
+        <div class="kpi-card"><div class="kpi-label">3월</div><div class="kpi-val">38<span class="kpi-unit">조</span></div></div>
+      </div>
+      <div class="grid-2" style="margin-bottom:14px">
+        <div class="card">
+          <div class="card-title">월별 판매량 (조)</div>
+          <div class="legend">
+            <span class="leg-item"><span class="leg-dot" style="background:#2563EB"></span>EL501(전동)</span>
+            <span class="leg-item"><span class="leg-dot" style="background:#0D9488"></span>SL301(수동)</span>
+          </div>
+          <div class="chart-wrap" style="height:190px"><canvas id="chartReclLoungeQty"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">월별 매출 (억원)</div>
+          <div class="legend">
+            <span class="leg-item"><span class="leg-dot" style="background:#2563EB"></span>EL501</span>
+            <span class="leg-item"><span class="leg-dot" style="background:#0D9488"></span>SL301</span>
+          </div>
+          <div class="chart-wrap" style="height:190px"><canvas id="chartReclLoungeRev"></canvas></div>
+        </div>
+      </div>
+      <div class="prod-grid">
+        <div class="prod-card"><img src="images/Lillo_SL301.jpg" class="prod-card-img" alt="Lillo SL301" onerror="this.style.display='none'"><div class="prod-card-body"><div class="prod-card-name">Lillo SL301 (수동)</div><div class="prod-card-meta"><span class="badge badge-main">주력</span><span class="prod-card-val">26.7조/월</span></div></div></div>
+      </div>
+    </div>
+
+    <div id="recl-online" class="ch-pane">
+      <div class="grid-4" style="margin-bottom:14px">
+        <div class="kpi-card"><div class="kpi-label">1분기 누적매출</div><div class="kpi-val">0.44<span class="kpi-unit">억</span></div></div>
+        <div class="kpi-card"><div class="kpi-label">1월</div><div class="kpi-val">1<span class="kpi-unit">조</span></div></div>
+        <div class="kpi-card"><div class="kpi-label">2월</div><div class="kpi-val">7<span class="kpi-unit">조</span></div></div>
+        <div class="kpi-card"><div class="kpi-label">3월</div><div class="kpi-val">30<span class="kpi-unit">조</span></div></div>
+      </div>
+      <div class="grid-2" style="margin-bottom:14px">
+        <div class="card">
+          <div class="card-title">월별 판매량 (조)</div>
+          <div class="chart-wrap" style="height:200px"><canvas id="chartReclOnlineQty"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">월별 매출 (억원)</div>
+          <div class="chart-wrap" style="height:200px"><canvas id="chartReclOnlineRev"></canvas></div>
+        </div>
+      </div>
+      <div class="prod-grid">
+        <div class="prod-card"><img src="images/Lillo_SO302.jpg" class="prod-card-img" alt="Lillo SO302" onerror="this.style.display='none'"><div class="prod-card-body"><div class="prod-card-name">Lillo SO302 (전동)</div><div class="prod-card-meta"><span class="badge badge-main">주력</span><span class="prod-card-val">12.7조/월</span></div></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</div><!-- /container -->
+
+<script src="data.js"></script>
+<script src="main.js"></script>
+</body>
+</html>
